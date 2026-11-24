@@ -9,8 +9,9 @@ road, a post office, a library, a market stall, a letter, a book.
 The sentence is fixed in this file, so the program is fully
 deterministic: every run writes the exact same bytes to
 /output/entry.txt. The gate is checked here too (UTF-8, 1-200
-characters, not only whitespace) and the run fails loudly if the
-sentence ever stops passing it.
+characters, not only whitespace, exactly one line) and the run fails
+loudly if the sentence ever stops passing it; after writing, the file
+is read back and verified byte-for-byte against the sentence.
 """
 
 import hashlib
@@ -34,12 +35,21 @@ def main() -> int:
     if not text.strip():
         print("gate fail: sentence is only whitespace", file=sys.stderr)
         return 1
+    if "\n" in text or "\r" in text:
+        print("gate fail: sentence must be exactly one line",
+              file=sys.stderr)
+        return 1
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
     data = text.encode("utf-8")
     with open(path, "wb") as f:
         f.write(data)
+    with open(path, "rb") as f:
+        if f.read() != data:
+            print("gate fail: written file does not match the sentence",
+                  file=sys.stderr)
+            return 1
     digest = hashlib.sha256(data).hexdigest()
     print(f"wrote {path}: {chars} chars, sha256 {digest}")
     return 0
